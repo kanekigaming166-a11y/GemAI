@@ -1,191 +1,138 @@
 <!DOCTYPE html>
-<html lang="en" class="light">
+<html lang="en" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>GemAI Chat</title>
+    <title>GemAI</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
-
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        brand: { 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8' }
-                    },
-                    animation: {
-                        'fade-in': 'fadeIn 0.3s ease-out',
-                        'bounce-alt': 'bounceAlt 1s infinite',
-                    },
-                    keyframes: {
-                        fadeIn: {
-                            '0%': { opacity: '0', transform: 'translateY(10px)' },
-                            '100%': { opacity: '1', transform: 'translateY(0)' },
-                        },
-                        bounceAlt: {
-                            '0%, 100%': { transform: 'translateY(-25%)', animationTimingFunction: 'cubic-bezier(0.8,0,1,1)' },
-                            '50%': { transform: 'none', animationTimingFunction: 'cubic-bezier(0,0,0.2,1)' },
-                        }
-                    }
-                }
-            }
-        }
-    </script>
-
     <style>
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-        .dark ::-webkit-scrollbar-thumb { background: #374151; }
-        
-        .prose pre {
-            background: #1e293b !important;
-            border-radius: 0.5rem;
-            padding: 1rem;
-            margin: 0.5rem 0;
-            overflow-x: auto;
+        /* ChatGPT Colors */
+        :root {
+            --bg-dark: #212121;
+            --sidebar-dark: #171717;
+            --user-bubble: #2f2f2f;
         }
-        .prose code { font-family: 'Fira Code', monospace; font-size: 0.9em; }
-        .prose p { margin-bottom: 0.5rem; line-height: 1.6; }
+        .dark body { background-color: var(--bg-dark); }
+        .sidebar { background-color: var(--sidebar-dark); }
         
-        .typing-dot {
-            animation: typing 1.4s infinite ease-in-out both;
-            fill: #3b82f6;
+        /* Typography */
+        .prose { max-width: 100% !important; font-size: 16px; line-height: 1.6; }
+        pre { background: #0d0d0d !important; border-radius: 8px; border: 1px solid #333; }
+        
+        /* Message Layout */
+        .message-container { max-width: 768px; margin: 0 auto; width: 100%; }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-thumb { background: #424242; border-radius: 10px; }
+        
+        /* Input Box style like GPT */
+        .input-wrapper {
+            background-color: #2f2f2f;
+            border: 1px solid #424242;
+            box-shadow: 0 0 15px rgba(0,0,0,0.1);
         }
-        .typing-dot:nth-child(1) { animation-delay: -0.32s; }
-        .typing-dot:nth-child(2) { animation-delay: -0.16s; }
-        @keyframes typing { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
+        .dark .input-wrapper { background-color: #2f2f2f; }
+        
+        /* Animations */
+        .dot-flashing { position: relative; width: 6px; height: 6px; border-radius: 5px; background-color: #fff; animation: dot-flashing 1s infinite linear alternate; animation-delay: .5s; }
+        .dot-flashing::before, .dot-flashing::after { content: ''; display: inline-block; position: absolute; top: 0; width: 6px; height: 6px; border-radius: 5px; background-color: #fff; animation: dot-flashing 1s infinite alternate; }
+        .dot-flashing::before { left: -12px; animation-delay: 0s; }
+        .dot-flashing::after { left: 12px; animation-delay: 1s; }
+        @keyframes dot-flashing { 0% { background-color: #fff; } 50%, 100% { background-color: #555; } }
     </style>
 </head>
-<body class="bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-100 transition-colors duration-200 h-[100dvh] flex flex-col overflow-hidden">
+<body class="text-gray-200 h-[100dvh] flex overflow-hidden">
 
-    <div id="backdrop" onclick="toggleSidebar()" class="fixed inset-0 bg-black/50 z-20 hidden lg:hidden backdrop-blur-sm transition-opacity"></div>
-
-    <aside id="sidebar" class="fixed inset-y-0 left-0 z-30 w-72 bg-white dark:bg-gray-950 border-r border-gray-200 dark:border-gray-800 transform -translate-x-full lg:translate-x-0 transition-transform duration-300 flex flex-col shadow-xl lg:shadow-none">
-        <div class="p-4 flex items-center justify-between border-b dark:border-gray-800">
-            <div class="flex items-center gap-2 font-bold text-xl text-brand-600 dark:text-brand-500">
-                <span>✨</span> GemAI
-            </div>
-            <button onclick="toggleSidebar()" class="lg:hidden p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">✕</button>
-        </div>
-
-        <div class="p-4">
-            <button onclick="createNewChat()" class="w-full py-3 px-4 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-xl flex items-center gap-3 font-medium transition-all group">
-                <span class="bg-white dark:bg-gray-900 p-1 rounded shadow-sm group-hover:scale-110 transition-transform">💬</span>
-                New Chat
+    <aside id="sidebar" class="sidebar w-64 flex-shrink-0 flex flex-col hidden md:flex transition-all duration-300">
+        <div class="p-3">
+            <button onclick="createNewChat()" class="w-full flex items-center gap-3 px-3 py-3 text-sm font-medium border border-gray-600 rounded-lg hover:bg-gray-800 transition-all">
+                <span class="text-lg">+</span> New Chat
             </button>
         </div>
-
         <div id="chat-list" class="flex-1 overflow-y-auto px-3 space-y-1"></div>
-
-        <div class="p-4 border-t dark:border-gray-800 space-y-2">
-            <button onclick="exportChat()" class="w-full flex items-center gap-3 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors">
-                ⬇️ Export Chat
-            </button>
-            <div class="flex items-center justify-between pt-2">
-                <button onclick="openSettings()" class="flex items-center gap-2 text-sm text-gray-600 hover:text-brand-600 dark:text-gray-400">
-                    ⚙️ Settings
-                </button>
-                <button onclick="toggleTheme()" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300">
-                    <span id="theme-icon">🌙</span>
-                </button>
-            </div>
+        <div class="p-3 border-t border-gray-800">
+            <button onclick="openSettings()" class="w-full flex items-center gap-3 p-3 text-sm hover:bg-gray-800 rounded-lg">⚙️ Settings</button>
         </div>
     </aside>
 
-    <main class="flex-1 flex flex-col h-full relative w-full lg:pl-72 transition-all">
-        <header class="lg:hidden flex items-center justify-between p-4 border-b dark:border-gray-800 bg-white dark:bg-gray-900 z-10">
-            <button onclick="toggleSidebar()" class="p-2 -ml-2 text-gray-600 dark:text-gray-300">☰</button>
-            <span id="header-title" class="font-semibold truncate max-w-[200px]">New Chat</span>
+    <main class="flex-1 flex flex-col relative h-full overflow-hidden">
+        
+        <header class="flex items-center justify-between p-3 border-b border-gray-800 md:border-none">
+            <button onclick="toggleSidebar()" class="md:hidden text-gray-400 p-2 text-xl">☰</button>
+            <div class="font-semibold text-gray-300">GemAI <span class="text-xs bg-gray-800 px-2 py-0.5 rounded text-gray-500 ml-1">4o</span></div>
             <div class="w-8"></div>
         </header>
 
-        <div id="chat-container" class="flex-1 overflow-y-auto p-4 pb-36 scroll-smooth space-y-6">
-            <div id="empty-state" class="h-full flex flex-col items-center justify-center text-center opacity-70 p-8">
-                <div class="text-6xl mb-4">🚀</div>
-                <h2 class="text-2xl font-bold mb-2">Welcome to GemAI</h2>
-                <p class="text-gray-500 max-w-sm">Enter your API Key in settings to start. Type "Generate an image of..." to create images!</p>
+        <div id="chat-container" class="flex-1 overflow-y-auto pt-4 pb-48 px-4 scroll-smooth">
+            <div id="empty-state" class="h-full flex flex-col items-center justify-center text-center">
+                <div class="w-12 h-12 bg-white rounded-full flex items-center justify-center mb-4">
+                    <span class="text-black font-bold text-2xl">G</span>
+                </div>
+                <h2 class="text-2xl font-bold text-gray-100">How can I help you today?</h2>
             </div>
         </div>
 
-        <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-white via-white to-transparent dark:from-gray-900 dark:via-gray-900 p-4 lg:pl-8 pb-6">
-            <div class="max-w-3xl mx-auto bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 flex items-end p-2 relative transition-shadow hover:shadow-xl focus-within:ring-2 ring-brand-500/50">
-                
-                <button onclick="toggleVoiceInput()" id="mic-btn" class="p-3 text-gray-400 hover:text-brand-600 transition-colors rounded-xl" title="Voice Input">
-                    🎤
-                </button>
-
-                <textarea id="user-input" rows="1" 
-                    class="flex-1 bg-transparent border-none focus:ring-0 text-gray-800 dark:text-gray-100 p-3 max-h-40 resize-none placeholder-gray-400"
-                    placeholder="Type a message..."
-                    oninput="autoResize(this)"
-                    onkeydown="handleEnter(event)"></textarea>
-
-                <button id="send-btn" onclick="sendMessage()" class="p-3 bg-brand-600 hover:bg-brand-500 text-white rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md">
-                    ➤
-                </button>
+        <div class="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-[#212121] via-[#212121] to-transparent">
+            <div class="message-container">
+                <div class="input-wrapper relative rounded-2xl flex items-end p-2 px-3">
+                    <button onclick="toggleVoiceInput()" id="mic-btn" class="p-2 text-gray-400 hover:text-white transition-colors">🎤</button>
+                    <textarea id="user-input" rows="1" 
+                        class="flex-1 bg-transparent border-none focus:ring-0 text-white p-2 max-h-52 resize-none outline-none overflow-y-auto"
+                        placeholder="Message GemAI..."
+                        oninput="autoResize(this)"
+                        onkeydown="handleEnter(event)"></textarea>
+                    <button id="send-btn" onclick="sendMessage()" class="bg-white text-black p-2 rounded-xl mb-1 ml-2 transition-all hover:bg-gray-200 disabled:bg-gray-600">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M7 11L12 6L17 11M12 18V7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                </div>
+                <p class="text-[11px] text-gray-500 text-center mt-2">GemAI can make mistakes. Check important info.</p>
             </div>
-            <div class="text-center text-xs text-gray-400 mt-2">GemAI can make mistakes. Verify important info.</div>
         </div>
     </main>
 
-    <dialog id="settings-modal" class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-0 w-full max-w-md backdrop:bg-black/60 backdrop:backdrop-blur-sm m-auto">
-        <div class="p-6">
-            <div class="flex justify-between items-center mb-6">
-                <h3 class="text-xl font-bold dark:text-white">Configuration</h3>
-                <button onclick="document.getElementById('settings-modal').close()" class="text-gray-500 hover:text-gray-700">✕</button>
+    <dialog id="settings-modal" class="bg-[#2f2f2f] text-gray-100 rounded-xl shadow-2xl p-6 w-full max-w-md backdrop:backdrop-blur-sm m-auto border border-gray-700">
+        <div class="flex justify-between items-center mb-6 border-b border-gray-700 pb-2">
+            <h3 class="text-lg font-bold">Settings</h3>
+            <button onclick="document.getElementById('settings-modal').close()" class="text-gray-400">✕</button>
+        </div>
+        <div class="space-y-4">
+            <div>
+                <label class="block text-xs font-bold text-gray-400 uppercase mb-1">API Key</label>
+                <input type="password" id="api-key" class="w-full p-2 bg-[#171717] border border-gray-700 rounded text-sm outline-none focus:border-white">
             </div>
-            <div class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium mb-1 dark:text-gray-300">OpenRouter API Key <span class="text-red-500">*</span></label>
-                    <input type="password" id="api-key" class="w-full p-3 rounded-lg border dark:border-gray-600 bg-gray-50 dark:bg-gray-700 dark:text-white focus:border-brand-500 focus:outline-none transition-colors" placeholder="sk-or-...">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium mb-1 dark:text-gray-300">GemAI Chat Model</label>
-                    <input type="text" id="model-id" class="w-full p-3 rounded-lg border dark:border-gray-600 bg-gray-50 dark:bg-gray-700 dark:text-white focus:border-brand-500 focus:outline-none" value="google/gemini-2.0-flash-lite-preview-02-05:free">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium mb-1 dark:text-gray-300">GemAI Image Model (DALL-E 3)</label>
-                    <input type="text" id="image-model-id" class="w-full p-3 rounded-lg border dark:border-gray-600 bg-gray-50 dark:bg-gray-700 dark:text-white focus:border-brand-500 focus:outline-none" value="openai/dall-e-3">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium mb-1 dark:text-gray-300">System Prompt</label>
-                    <textarea id="sys-prompt" rows="3" class="w-full p-3 rounded-lg border dark:border-gray-600 bg-gray-50 dark:bg-gray-700 dark:text-white focus:border-brand-500 focus:outline-none" placeholder="You are GemAI, a helpful assistant..."></textarea>
-                </div>
-                <button onclick="saveSettings()" class="w-full py-3 bg-brand-600 hover:bg-brand-500 text-white rounded-lg font-bold shadow-lg transition-transform active:scale-95">Save Changes</button>
+            <div>
+                <label class="block text-xs font-bold text-gray-400 uppercase mb-1">Chat Model</label>
+                <input type="text" id="model-id" value="google/gemini-2.0-flash-lite-preview-02-05:free" class="w-full p-2 bg-[#171717] border border-gray-700 rounded text-sm outline-none">
             </div>
+            <button onclick="saveSettings()" class="w-full py-2 bg-white text-black rounded font-bold mt-4">Save</button>
         </div>
     </dialog>
 
     <script>
+        // --- Core JS ---
         let state = {
             apiKey: localStorage.getItem('chat_api_key') || '',
             chatModel: localStorage.getItem('chat_model') || 'google/gemini-2.0-flash-lite-preview-02-05:free',
-            imageModel: localStorage.getItem('image_model') || 'openai/dall-e-3',
-            systemPrompt: localStorage.getItem('chat_sys_prompt') || 'You are GemAI, a helpful assistant.',
             chats: JSON.parse(localStorage.getItem('chat_history') || '{}'),
-            activeChatId: null,
-            theme: localStorage.getItem('theme') || 'light'
+            activeChatId: null
         };
 
         let recognition;
         let synth = window.speechSynthesis;
 
         document.addEventListener('DOMContentLoaded', () => {
-            applyTheme();
             renderSidebar();
-            const chatIds = Object.keys(state.chats).sort((a,b) => state.chats[b].timestamp - state.chats[a].timestamp);
-            if (chatIds.length > 0) loadChat(chatIds[0]);
+            const ids = Object.keys(state.chats).sort((a,b) => state.chats[b].timestamp - state.chats[a].timestamp);
+            if (ids.length > 0) loadChat(ids[0]);
             else createNewChat(false);
             if (!state.apiKey) openSettings();
-            if (!('webkitSpeechRecognition' in window)) document.getElementById('mic-btn').style.display = 'none';
         });
 
         function generateId() { return Math.random().toString(36).substr(2, 9); }
@@ -196,242 +143,135 @@
             state.chats[id] = { id, title: 'New Chat', messages: [], timestamp: Date.now() };
             saveChats();
             renderSidebar();
-            if (activate) {
-                loadChat(id);
-                if (window.innerWidth < 1024) toggleSidebar();
-            }
+            if (activate) loadChat(id);
         }
 
         function loadChat(id) {
             state.activeChatId = id;
-            document.getElementById('header-title').innerText = state.chats[id].title || 'New Chat';
             document.getElementById('empty-state').style.display = state.chats[id].messages.length ? 'none' : 'flex';
             const container = document.getElementById('chat-container');
             container.innerHTML = '';
-            state.chats[id].messages.forEach(msg => appendMessage(msg, false));
-            setTimeout(() => { container.scrollTop = container.scrollHeight; }, 100);
-            document.querySelectorAll('#chat-list > div').forEach(el => el.classList.remove('bg-gray-100', 'dark:bg-gray-800', 'font-semibold', 'border-l-4', 'border-brand-500'));
-            const activeChatElement = document.getElementById(`chat-item-${id}`);
-            if(activeChatElement) activeChatElement.classList.add('bg-gray-100', 'dark:bg-gray-800', 'font-semibold', 'border-l-4', 'border-brand-500');
+            state.chats[id].messages.forEach(msg => appendMessage(msg));
+            container.scrollTop = container.scrollHeight;
         }
 
         function renderSidebar() {
             const list = document.getElementById('chat-list');
             list.innerHTML = '';
             Object.values(state.chats).sort((a,b) => b.timestamp - a.timestamp).forEach(chat => {
-                const div = document.createElement('div');
-                div.id = `chat-item-${chat.id}`;
-                div.className = `flex items-center justify-between p-3 rounded-lg cursor-pointer text-sm hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors`;
-                div.onclick = () => loadChat(chat.id);
-                div.innerHTML = `<span class="truncate max-w-[180px]">${chat.title}</span><button onclick="event.stopPropagation(); deleteChat('${chat.id}')" class="text-gray-400 hover:text-red-500">✕</button>`;
-                list.appendChild(div);
+                const btn = document.createElement('div');
+                btn.className = `p-2 text-sm text-gray-300 truncate rounded-lg cursor-pointer hover:bg-gray-800 mb-1 ${state.activeChatId === chat.id ? 'bg-gray-800' : ''}`;
+                btn.onclick = () => loadChat(chat.id);
+                btn.innerText = chat.title;
+                list.appendChild(btn);
             });
         }
 
-        function deleteChat(id) {
-            if (confirm('Delete this chat?')) {
-                delete state.chats[id];
-                saveChats();
-                if (state.activeChatId === id) {
-                    const remaining = Object.keys(state.chats).sort((a,b) => state.chats[b].timestamp - state.chats[a].timestamp);
-                    if (remaining.length > 0) loadChat(remaining[0]);
-                    else createNewChat();
-                } else renderSidebar();
-            }
-        }
-
-        function appendMessage(msg, animate = true) {
+        function appendMessage(msg) {
             const container = document.getElementById('chat-container');
-            const div = document.createElement('div');
-            const isUser = msg.role === 'user';
-            div.className = `flex ${isUser ? 'justify-end' : 'justify-start'} ${animate ? 'animate-fade-in' : ''}`;
-            const bubble = document.createElement('div');
-            bubble.className = isUser 
-                ? 'bg-brand-600 text-white rounded-2xl rounded-tr-none px-4 py-3 max-w-[85%] shadow-md'
-                : 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 rounded-2xl rounded-tl-none px-5 py-4 max-w-[90%] shadow-sm prose dark:prose-invert relative';
-
-            if (isUser) {
-                bubble.innerText = msg.content;
-            } else if (msg.type === 'image') {
-                bubble.innerHTML = `<img src="${msg.content}" alt="Generated Image" class="max-w-full h-auto rounded-lg shadow-lg">`;
+            const wrapper = document.createElement('div');
+            wrapper.className = `py-6 ${msg.role === 'assistant' ? 'bg-transparent' : 'flex justify-end'}`;
+            
+            const content = document.createElement('div');
+            content.className = `message-container flex gap-4 ${msg.role === 'user' ? 'bg-[#2f2f2f] rounded-2xl px-4 py-2 w-fit' : ''}`;
+            
+            const textDiv = document.createElement('div');
+            textDiv.className = "prose prose-invert prose-sm text-gray-200";
+            
+            if (msg.type === 'image') {
+                textDiv.innerHTML = `<img src="${msg.content}" class="rounded-lg max-w-sm mt-2 shadow-xl border border-gray-700" />`;
             } else {
-                bubble.innerHTML = DOMPurify.sanitize(marked.parse(msg.content));
-                bubble.querySelectorAll('pre code').forEach((block) => { hljs.highlightElement(block); });
-                const speakerBtn = document.createElement('button');
-                speakerBtn.className = 'absolute top-2 right-2 p-1 bg-gray-200 dark:bg-gray-700 rounded-full text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors text-xs';
-                speakerBtn.innerHTML = '🔊';
-                speakerBtn.onclick = () => readMessageAloud(msg.content);
-                bubble.appendChild(speakerBtn);
+                textDiv.innerHTML = DOMPurify.sanitize(marked.parse(msg.content));
+                textDiv.querySelectorAll('pre code').forEach(el => hljs.highlightElement(el));
             }
-            div.appendChild(bubble);
-            container.appendChild(div);
-            return bubble;
+
+            // Speak Button for AI
+            if (msg.role === 'assistant') {
+                const spkBtn = document.createElement('button');
+                spkBtn.innerHTML = "🔊";
+                spkBtn.className = "text-xs opacity-30 hover:opacity-100 ml-auto block";
+                spkBtn.onclick = () => readText(msg.content);
+                content.appendChild(textDiv);
+                content.appendChild(spkBtn);
+            } else {
+                content.appendChild(textDiv);
+            }
+
+            wrapper.appendChild(content);
+            container.appendChild(wrapper);
+            container.scrollTop = container.scrollHeight;
         }
 
         async function sendMessage() {
             const input = document.getElementById('user-input');
             const text = input.value.trim();
-            if (!text || !state.apiKey) return !state.apiKey ? openSettings() : null;
+            if (!text || !state.apiKey) return;
+
             input.value = '';
             input.style.height = 'auto';
+            document.getElementById('empty-state').style.display = 'none';
+
             const userMsg = { role: 'user', content: text };
             state.chats[state.activeChatId].messages.push(userMsg);
-            saveChats();
+            if (state.chats[state.activeChatId].messages.length === 1) state.chats[state.activeChatId].title = text.slice(0, 20);
+            
             appendMessage(userMsg);
-            document.getElementById('empty-state').style.display = 'none';
-            if (state.chats[state.activeChatId].messages.length === 1) {
-                state.chats[state.activeChatId].title = text.slice(0, 30) + (text.length > 30 ? '...' : '');
+            saveChats();
+
+            // Loading Indicator
+            const loader = document.createElement('div');
+            loader.className = "message-container py-8 flex gap-4 items-center";
+            loader.innerHTML = `<div class="dot-flashing ml-4"></div>`;
+            document.getElementById('chat-container').appendChild(loader);
+
+            try {
+                const isImage = text.toLowerCase().includes("image") || text.toLowerCase().includes("generate");
+                const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${state.apiKey}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        model: isImage ? "openai/dall-e-3" : state.chatModel,
+                        messages: state.chats[state.activeChatId].messages
+                    })
+                });
+
+                const data = await response.json();
+                loader.remove();
+
+                const aiContent = data.choices[0].message.content;
+                const msgObj = { role: 'assistant', content: aiContent, type: isImage ? 'image' : 'text' };
+                state.chats[state.activeChatId].messages.push(msgObj);
+                appendMessage(msgObj);
+                saveChats();
                 renderSidebar();
+            } catch (err) {
+                loader.remove();
+                alert("Error: " + err.message);
             }
-            const imgMatch = text.match(/(generate|create|show me) an? (image|picture) of (.+)/i);
-            if (imgMatch) await generateImage(imgMatch[3]);
-            else await generateChatResponse();
         }
 
-        async function generateChatResponse() {
-            const loadingDiv = document.createElement('div');
-            loadingDiv.className = 'flex justify-start animate-fade-in ml-2';
-            loadingDiv.innerHTML = '<div class="bg-gray-200 dark:bg-gray-800 px-4 py-2 rounded-full flex gap-1"><span class="typing-dot">●</span><span class="typing-dot">●</span><span class="typing-dot">●</span></div>';
-            document.getElementById('chat-container').appendChild(loadingDiv);
-            document.getElementById('chat-container').scrollTop = document.getElementById('chat-container').scrollHeight;
-            document.getElementById('send-btn').disabled = true;
-
-            try {
-                const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${state.apiKey}`,
-                        'Content-Type': 'application/json',
-                        'HTTP-Referer': window.location.href,
-                        'X-Title': 'GemAI'
-                    },
-                    body: JSON.stringify({
-                        model: state.chatModel,
-                        messages: [
-                            ...(state.systemPrompt ? [{ role: 'system', content: state.systemPrompt }] : []),
-                            ...state.chats[state.activeChatId].messages
-                        ]
-                    })
-                });
-                const data = await response.json();
-                loadingDiv.remove();
-                if (data.error) throw new Error(data.error.message);
-                const aiText = data.choices[0].message.content;
-                state.chats[state.activeChatId].messages.push({ role: 'assistant', content: aiText, type: 'text' });
-                saveChats();
-                appendMessage({ role: 'assistant', content: aiText, type: 'text' });
-                document.getElementById('chat-container').scrollTop = document.getElementById('chat-container').scrollHeight;
-            } catch (err) {
-                loadingDiv.remove();
-                alert(err.message);
-            } finally { document.getElementById('send-btn').disabled = false; }
-        }
-
-        async function generateImage(prompt) {
-            const loadingDiv = document.createElement('div');
-            loadingDiv.className = 'flex justify-start animate-bounce-alt ml-2';
-            loadingDiv.innerHTML = '<div class="bg-gray-200 dark:bg-gray-800 px-4 py-2 rounded-full text-brand-500">🎨 GemAI Generating Image...</div>';
-            document.getElementById('chat-container').appendChild(loadingDiv);
-            document.getElementById('send-btn').disabled = true;
-
-            try {
-                const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${state.apiKey}`,
-                        'Content-Type': 'application/json',
-                        'HTTP-Referer': window.location.href,
-                        'X-Title': 'GemAI'
-                    },
-                    body: JSON.stringify({
-                        model: state.imageModel,
-                        messages: [{role: "user", content: prompt}]
-                    })
-                });
-                const data = await response.json();
-                loadingDiv.remove();
-                if (data.error) throw new Error(data.error.message);
-                const imageUrl = data.choices[0].message.content; 
-                state.chats[state.activeChatId].messages.push({ role: 'assistant', content: imageUrl, type: 'image' });
-                saveChats();
-                appendMessage({ role: 'assistant', content: imageUrl, type: 'image' });
-            } catch (err) {
-                loadingDiv.remove();
-                alert(err.message);
-            } finally { document.getElementById('send-btn').disabled = false; }
-        }
-
-        function openSettings() {
-            document.getElementById('api-key').value = state.apiKey;
-            document.getElementById('model-id').value = state.chatModel;
-            document.getElementById('image-model-id').value = state.imageModel;
-            document.getElementById('sys-prompt').value = state.systemPrompt;
-            document.getElementById('settings-modal').showModal();
-        }
-
+        function openSettings() { document.getElementById('settings-modal').showModal(); document.getElementById('api-key').value = state.apiKey; }
         function saveSettings() {
-            state.apiKey = document.getElementById('api-key').value.trim();
-            state.chatModel = document.getElementById('model-id').value.trim();
-            state.imageModel = document.getElementById('image-model-id').value.trim();
-            state.systemPrompt = document.getElementById('sys-prompt').value.trim();
+            state.apiKey = document.getElementById('api-key').value;
+            state.chatModel = document.getElementById('model-id').value;
             localStorage.setItem('chat_api_key', state.apiKey);
             localStorage.setItem('chat_model', state.chatModel);
-            localStorage.setItem('image_model', state.imageModel);
-            localStorage.setItem('chat_sys_prompt', state.systemPrompt);
             document.getElementById('settings-modal').close();
-        }
-
-        function toggleVoiceInput() {
-            if (!recognition) {
-                recognition = new webkitSpeechRecognition();
-                recognition.lang = 'en-US';
-                recognition.onstart = () => { 
-                    document.getElementById('mic-btn').classList.add('text-red-500', 'animate-pulse');
-                    document.getElementById('user-input').placeholder = 'GemAI is listening...';
-                };
-                recognition.onresult = (e) => { document.getElementById('user-input').value = e.results[0][0].transcript; };
-                recognition.onend = () => {
-                    document.getElementById('mic-btn').classList.remove('text-red-500', 'animate-pulse');
-                    document.getElementById('user-input').placeholder = 'Type a message...';
-                    if (document.getElementById('user-input').value.trim()) sendMessage();
-                };
-            }
-            recognition.start();
-        }
-
-        function readMessageAloud(text) {
-            if (synth.speaking) synth.cancel();
-            else {
-                const utt = new SpeechSynthesisUtterance(text);
-                utt.lang = 'en-US';
-                synth.speak(utt);
-            }
-        }
-
-        function toggleTheme() {
-            state.theme = state.theme === 'light' ? 'dark' : 'light';
-            localStorage.setItem('theme', state.theme);
-            applyTheme();
-        }
-
-        function applyTheme() {
-            if (state.theme === 'dark') {
-                document.documentElement.classList.add('dark');
-                document.getElementById('theme-icon').innerText = '☀️';
-            } else {
-                document.documentElement.classList.remove('dark');
-                document.getElementById('theme-icon').innerText = '🌙';
-            }
-        }
-
-        function toggleSidebar() {
-            document.getElementById('sidebar').classList.toggle('-translate-x-full');
-            document.getElementById('backdrop').classList.toggle('hidden');
         }
 
         function autoResize(el) { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; }
         function handleEnter(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }
-        function exportChat() { /* ... export logic ... */ }
+        function toggleSidebar() { document.getElementById('sidebar').classList.toggle('hidden'); }
+        function readText(txt) { if(synth.speaking) synth.cancel(); else synth.speak(new SpeechSynthesisUtterance(txt)); }
+        function toggleVoiceInput() {
+            if (!recognition) {
+                recognition = new webkitSpeechRecognition();
+                recognition.onstart = () => { document.getElementById('mic-btn').innerText = "🔴"; };
+                recognition.onresult = (e) => { document.getElementById('user-input').value = e.results[0][0].transcript; };
+                recognition.onend = () => { document.getElementById('mic-btn').innerText = "🎤"; sendMessage(); };
+            }
+            recognition.start();
+        }
     </script>
 </body>
 </html>
